@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Free Public Image Search</title>
+    <style>
+        :root {
+            --bg-dark: #090d16;
+            --panel: #131c2e;
+            --blue-glow: #2563eb;
+            --text-main: #f1f5f9;
+            --danger-red: #f87171;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            margin: 0;
+            padding: 40px 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .app-window {
+            max-width: 750px;
+            width: 100%;
+            background: var(--panel);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+        h2 { margin: 0 0 5px 0; text-align: center; font-size: 24px; color: #fff;}
+        .desc { text-align: center; color: #64748b; font-size: 14px; margin-bottom: 30px; }
+        .upload-container {
+            border: 2px dashed #334155;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            background: rgba(30, 41, 59, 0.3);
+            transition: all 0.25s ease;
+        }
+        .upload-container:hover { border-color: var(--blue-glow); background: rgba(37, 99, 235, 0.05); }
+        .action-btn {
+            width: 100%;
+            background: var(--blue-glow);
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            margin-top: 20px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .action-btn:hover { opacity: 0.95; }
+        #error-banner {
+            display: none;
+            background: rgba(220, 38, 38, 0.15);
+            border: 1px solid #dc2626;
+            color: var(--danger-red);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        #loader { display: none; text-align: center; padding: 25px 0; color: #94a3b8; font-weight: 500;}
+        .results-wrapper { margin-top: 30px; display: flex; flex-direction: column; gap: 15px; }
+        .card-row {
+            background: #0b111e;
+            padding: 15px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border: 1px solid #1e293b;
+        }
+        .thumb-img {
+            width: 65px;
+            height: 65px;
+            object-fit: cover;
+            border-radius: 6px;
+            background: #1e293b;
+        }
+        .card-details { flex-grow: 1; min-width: 0; }
+        .card-details h4 { margin: 0 0 4px 0; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+        .card-details p { margin: 0; font-size: 13px; color: #64748b; }
+        .visit-link {
+            background: #1e293b;
+            color: #38bdf8;
+            text-decoration: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .visit-link:hover { background: #2563eb; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="app-window">
+    <h2>Global Image Matcher</h2>
+    <div class="desc">Free tier integration running via Google Lens Search Engine</div>
+    
+    <form id="submission-form">
+        <div class="upload-container" onclick="document.getElementById('img-selector').click()">
+            <svg style="width:40px; height:40px; fill:#475569; margin-bottom:10px;" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            <div id="status-label" style="font-weight:500;">Select face image from local drive</div>
+            <input type="file" id="img-selector" style="display:none;" accept="image/*" required>
+        </div>
+        <button type="submit" class="action-btn">Launch Free Lens Lookup</button>
+    </form>
+
+    <div id="error-banner"></div>
+    <div id="loader">Scanning global image indexes... Please hold on...</div>
+    <div class="results-wrapper" id="view-container"></div>
+</div>
+
+<script>
+    const imgSelector = document.getElementById('img-selector');
+    const statusLabel = document.getElementById('status-label');
+    const submissionForm = document.getElementById('submission-form');
+    const errorBanner = document.getElementById('error-banner');
+    const loader = document.getElementById('loader');
+    const viewContainer = document.getElementById('view-container');
+
+    imgSelector.addEventListener('change', () => {
+        if(imgSelector.files.length) {
+            statusLabel.innerHTML = `Target Loaded: <b style="color:#3b82f6;">${imgSelector.files[0].name}</b>`;
+        }
+    });
+
+    submissionForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        errorBanner.style.display = 'none';
+        viewContainer.innerHTML = '';
+        
+        if (!imgSelector.files.length) return;
+
+        loader.style.display = 'block';
+        const payloadData = new FormData();
+        payloadData.append("file", imgSelector.files[0]);
+
+        try {
+            const endpointCall = await fetch('/search-free-lens', { method: 'POST', body: payloadData });
+            const dataPackage = await endpointCall.json();
+
+            loader.style.display = 'none';
+
+            if (!endpointCall.ok) {
+                errorBanner.textContent = dataPackage.detail || "Lookup request aborted.";
+                errorBanner.style.display = 'block';
+                return;
+            }
+
+            if (!dataPackage.matches || dataPackage.matches.length === 0) {
+                viewContainer.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">No exact visual matches detected across public sites.</div>';
+                return;
+            }
+
+            dataPackage.matches.forEach(item => {
+                const element = document.createElement('div');
+                element.className = 'card-row';
+                element.innerHTML = `
+                    <img class="thumb-img" src="${item.thumbnail}" alt="thumb">
+                    <div class="card-details">
+                        <h4>${item.title}</h4>
+                        <p>Source platform: ${item.source_domain}</p>
+                    </div>
+                    <a class="visit-link" href="${item.profile_url}" target="_blank">Open Profile</a>
+                `;
+                viewContainer.appendChild(element);
+            });
+
+        } catch (err) {
+            loader.style.display = 'none';
+            errorBanner.textContent = "Unable to talk to your local python web service engine.";
+            errorBanner.style.display = 'block';
+        }
+    });
+</script>
+</body>
+</html>

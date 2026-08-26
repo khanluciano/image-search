@@ -1,0 +1,12 @@
+# Environment variables (contains private API keys)
+.env
+
+# Python build and cache artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+env/
